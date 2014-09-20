@@ -35,15 +35,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\include\lzma.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\LzmaLib.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\Types.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\Alloc.h">
       <Filter>Headers\private</Filter>
     </ClInclude>
@@ -64,6 +55,15 @@
     </ClInclude>
     <ClInclude Include="..\src\Threads.h">
       <Filter>Headers\private</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\LzmaLib\LzmaLib.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\LzmaLib\Types.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\LzmaLib\lzma.h">
+      <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

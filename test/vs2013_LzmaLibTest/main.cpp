@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "lzma.h"
+#include <LzmaLib/lzma.h>
 
 using namespace std;
 

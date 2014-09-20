@@ -4,12 +4,12 @@
 //  Author: Ruzzz [ruzzzua@gmail.com]
 //
 
-#ifndef __LZMA_H
-#define __LZMA_H
+#ifndef __LZMA_H__
+#define __LZMA_H__
 
-#include "LzmaLib.h"
+#include <LzmaLib/LzmaLib.h>
 
-// #ifndef __cplusplus // TODO
+#ifndef __cplusplus
 
 struct LzmaPackedData
 {
@@ -27,7 +27,6 @@ struct LzmaPackedData
 //     result.uncompressedSize - Просто дублируется входящий параметр size.
 //     result.prop - Возвращает внутреннюю информацию архиватора о настройках сжатия.
 //                   Нужна архиватору для разархивирвоания. Скорее всего вам не понадобиться.
-//     
 // Return:
 //   1 - OK and 'result' filled.
 //   0 - Error. В этом случае функция не устанавливает result.compressedData и освобождать ничего не нужно.
@@ -39,7 +38,7 @@ int lzmaPack(const unsigned char *source, const size_t size, LzmaPackedData *res
 	size_t propSize = LZMA_PROPS_SIZE;
 	while (1)
 	{
-		int code = LzmaCompress(buf, &bufsize, source, size, result->props, &propSize, 9, 1 << 24, 3, 0, 2, 32, 2);  // TODO Magic consts
+		int code = LzmaCompress(buf, &bufsize, source, size, result->props, &propSize, 9, 1 << 24, 3, 0, 2, 32, 2);
 		if (code == SZ_OK)
 		{
 			// Скорее всего размер будет другим (меньше), поэтому:
@@ -62,14 +61,14 @@ int lzmaPack(const unsigned char *source, const size_t size, LzmaPackedData *res
 		else
 			break;  // Error
 	}
-	free(buf);  // If error
+
+	free(buf);
 	return 0;
 }
 
 // Params:
 //   source - Compressed data. Полученные ранее от lzmaCompress.
 //   result, resultSize - Возвращается указатель на распакованные данные и размер этих данных. Не забудьте освободить через free().
-//     
 // Return:
 //   1 - OK, 'result' and 'resultSize' filled.
 //   0 - Error. В этом случае функция не устанавливает result и освобождать ничего не нужно.
@@ -109,16 +108,15 @@ int lzmaUnpack(const LzmaPackedData *source, unsigned char **result, size_t *res
 		else
 			break;  // Error
 	}
-	free(buf);  // If error
+
+	free(buf);
 	return 0;
 }
 
-// #else  // #ifndef __cplusplus // TODO
+#else  // #ifndef __cplusplus
 
 namespace lzma
 {
-	// TODO Исключить промежуточный вызов lzmaCompress и lzmaUncompress, использовать #ifndef __cplusplus
-	
 	template <typename TBuffer>
 	struct PackedData
 	{
@@ -128,36 +126,72 @@ namespace lzma
 
 		bool pack(const TBuffer source)
 		{
-			LzmaPackedData pd;
-			if (!lzmaPack((unsigned char*)&source[0], source.size(), &pd))
-				return false;
-			data.assign((TBuffer::value_type *)pd.data, (TBuffer::value_type *)(pd.data + pd.size));
-			free(pd.data);
-			realSize = pd.realSize;
-			memcpy(props, pd.props, LZMA_PROPS_SIZE);
-			return true;
+			size_t packedSize = source.size();
+			data.resize(packedSize);
+			size_t propSize = LZMA_PROPS_SIZE;
+			while (1)
+			{
+				int code = LzmaCompress((unsigned char *)&data[0], &packedSize,
+										(unsigned char *)&source[0], source.size(),
+										props, &propSize, 9, 1 << 24, 3, 0, 2, 32, 2);
+				if (code == SZ_OK)
+				{
+					data.resize(packedSize);
+					// data.shrink_to_fit();
+					realSize = source.size();
+					return true;
+				}
+				else if (code == SZ_ERROR_OUTPUT_EOF)
+				{
+					packedSize = packedSize + (packedSize >> 1);  // * 1.5
+					data.resize(packedSize);
+				}
+				else
+					break;  // Error
+			}
+
+			data.clear();
+			// data.shrink_to_fit();
+			return false;
 		}
 
 		bool unpack(TBuffer &result)
 		{
-			LzmaPackedData pd = {
-				(unsigned char*)&data[0],
-				data.size(),
-				realSize
-			};
-			memcpy(pd.props, props, LZMA_PROPS_SIZE);
-			unsigned char *buf;
-			size_t bufsize;
-			if (!lzmaUnpack(&pd, &buf, &bufsize))
-				return false;
-			result.assign((TBuffer::value_type *)buf, (TBuffer::value_type *)(buf + bufsize));
-			free(buf);
-			return true;
+			size_t resultSize = realSize;
+			result.resize(resultSize);
+			size_t packedSize = data.size();
+			size_t propSize = LZMA_PROPS_SIZE;
+			while (1)
+			{
+				int code = LzmaUncompress((unsigned char*)&result[0], &resultSize,
+										  (unsigned char*)&data[0], &packedSize,
+										  props, LZMA_PROPS_SIZE);
+				if (code == SZ_OK)
+				{
+					if (resultSize != realSize)
+					{
+						result.resize(resultSize);
+						// data.shrink_to_fit();
+					}
+					return true;
+				}
+				else if (code == SZ_ERROR_OUTPUT_EOF)
+				{
+					resultSize = resultSize + 1024;  // + 1Kb
+					result.resize(resultSize);
+				}
+				else
+					break;  // Error
+			}
+
+			result.clear();
+			// result.shrink_to_fit();
+			return false;
 		}
 	};
 
 }  // namespace lzma
 
-// #endif  // __cplusplus // TODO
+#endif  // __cplusplus // TODO
 
-#endif  // __LZMA_H
+#endif  // __LZMA_H__
